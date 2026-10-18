@@ -300,7 +300,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
                 {q && <> for &ldquo;{q}&rdquo;</>}
                 {activeCategory && <> in {categoryLabel(activeCategory)}</>}
               </span>
-              <Link href="/#results" className="underline hover:text-madder">Clear filters</Link>
+              <Link href="/#results" className="underline hover:opacity-60">Clear filters</Link>
             </div>
           )}
 
@@ -311,7 +311,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
                   <p className="font-medium text-ink mb-1">No verified alternatives match that yet.</p>
                   <p className="text-sm">
                     Try a different search, or{' '}
-                    <Link href="/submit" className="underline hover:text-madder">
+                    <Link href="/submit" className="underline hover:opacity-60">
                       submit an Indian brand
                     </Link>{' '}
                     that should be here.

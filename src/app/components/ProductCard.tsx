@@ -40,7 +40,7 @@ export default function ProductCard({ product }: { product: any }) {
         )}
       </div>
 
-      <div className="mt-6 inline-flex items-center gap-1 text-sm font-medium group-hover:text-madder transition-colors">
+      <div className="mt-6 inline-flex items-center gap-1 text-sm font-medium group-hover:opacity-60 transition-colors">
         See full comparison <ArrowUpRight className="h-4 w-4" />
       </div>
     </Link>

@@ -225,7 +225,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                     href={brand.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline hover:text-madder"
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline hover:opacity-60"
                   >
                     Brand website <ExternalLink className="h-3.5 w-3.5" />
                   </a>

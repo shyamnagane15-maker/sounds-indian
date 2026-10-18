@@ -30,7 +30,7 @@ function SearchPill({
 }
 
 export default function SiteHeader({ q = '', category }: { q?: string; category?: string }) {
-  const linkClass = 'text-sm font-medium hover:text-madder transition-colors';
+  const linkClass = 'text-sm font-medium hover:opacity-60 transition-colors';
 
   return (
     <>

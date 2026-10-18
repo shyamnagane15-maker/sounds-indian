@@ -9,11 +9,11 @@
 
 /* Brand colours: bg-ink, text-ivory, border-gold, bg-madder, text-leaf, etc. */
 @theme {
-  --color-ink: #1F2A3D;
-  --color-ivory: #F4EFE4;
-  --color-gold: #D9A22B;
-  --color-madder: #A8402F;
-  --color-leaf: #55694A;
+  --color-ink: #0A0A0A;      /* near-black, like the logo */
+  --color-ivory: #FFFFFF;    /* white */
+  --color-gold: #A3A3A3;     /* now a neutral grey accent */
+  --color-madder: #B91C1C;   /* trade-offs and errors */
+  --color-leaf: #15803D;     /* verified badges and savings */
 
   /* Tricolour theme (Vocal For Local badge) */
   --color-saffron: #FF9933;
@@ -21,11 +21,11 @@
   --color-india-navy: #000080;
 }
 
-/* Fonts. The --font-inter and --font-archivo-black variables are created in layout.tsx.
+/* Fonts. The --font-nunito and --font-fredoka variables are created in layout.tsx.
    font-sans = body text, font-display = the heavy headline font. */
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-archivo-black), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Scrolling brand ticker (see components/BrandMarquee.tsx) */

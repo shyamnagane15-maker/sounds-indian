@@ -1,17 +1,18 @@
 import type { Metadata, Viewport } from 'next';
-import { Archivo_Black, Inter } from 'next/font/google';
+import { Fredoka, Nunito } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({
+// Nunito for body text (softly rounded), Fredoka Bold for headlines (bold and round, like the logo)
+const nunito = Nunito({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-nunito',
   display: 'swap',
 });
 
-const archivoBlack = Archivo_Black({
+const fredoka = Fredoka({
   subsets: ['latin'],
-  weight: '400',
-  variable: '--font-archivo-black',
+  weight: '700',
+  variable: '--font-fredoka',
   display: 'swap',
 });
 
@@ -31,7 +32,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${archivoBlack.variable}`}>
+    <html lang="en" className={`${nunito.variable} ${fredoka.variable}`}>
       <body className="bg-ivory text-ink font-sans antialiased">{children}</body>
     </html>
   );
