@@ -1,9 +1,70 @@
 @import "tailwindcss";
 
+/* "short:" applies only on screens that aren't very tall (small laptops), e.g. short:hidden */
+@custom-variant short {
+  @media (max-height: 780px) {
+    @slot;
+  }
+}
+
+/* Brand colours: bg-ink, text-ivory, border-gold, bg-madder, text-leaf, etc. */
 @theme {
   --color-ink: #1F2A3D;
   --color-ivory: #F4EFE4;
   --color-gold: #D9A22B;
   --color-madder: #A8402F;
   --color-leaf: #55694A;
+
+  /* Tricolour theme (Vocal For Local badge) */
+  --color-saffron: #FF9933;
+  --color-india-green: #138808;
+  --color-india-navy: #000080;
+}
+
+/* Fonts. The --font-inter and --font-archivo-black variables are created in layout.tsx.
+   font-sans = body text, font-display = the heavy headline font. */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo-black), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Scrolling brand ticker (see components/BrandMarquee.tsx) */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 30s) linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
+
+/* "Vocal For Local" badge: keeps growing and shrinking, with a ripple behind it */
+@keyframes vocal-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.14); }
+}
+
+@keyframes vocal-ripple {
+  0%   { transform: scale(1);    opacity: 0.55; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.vocal-pulse  { animation: vocal-pulse 1.6s ease-in-out infinite; }
+.vocal-ripple { animation: vocal-ripple 1.6s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vocal-pulse  { animation: none; }
+  .vocal-ripple { display: none; }
 }
