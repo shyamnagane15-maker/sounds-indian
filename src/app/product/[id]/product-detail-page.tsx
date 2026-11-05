@@ -6,9 +6,11 @@ import { AlertCircle, Check, ExternalLink, FlaskConical, Leaf, Tag } from 'lucid
 import { supabase } from '../../lib/supabase';
 import { categoryLabel } from '../../lib/categories';
 import { formatINR, savingsPercent } from '../../lib/format';
+import { getSpecFields } from '../../lib/specs';
 import SiteHeader from '../../components/SiteHeader';
 import SiteFooter from '../../components/SiteFooter';
 import ProductCard from '../../components/ProductCard';
+import { firstRelation, type ProductCardData, type ProductDetailData } from '../../lib/productTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +37,7 @@ const getProduct = cache(async (id: string) => {
     .eq('id', id)
     .eq('verification_status', 'verified_by_team')
     .maybeSingle();
-  return data;
+  return data as ProductDetailData | null;
 });
 
 export async function generateMetadata({
@@ -46,30 +48,39 @@ export async function generateMetadata({
   const { id } = await params;
   const product = await getProduct(id);
   if (!product) return { title: 'Product not found' };
+  const brand = firstRelation(product.brand);
   return {
     title: `${product.indian_product_name}: Indian alternative to ${product.foreign_replacement_name}`,
-    description: `Compare ${product.indian_product_name} by ${product.brand?.name} with ${product.foreign_replacement_name}: price, ingredients, ethics and the honest trade-off.`,
+    description: `Compare ${product.indian_product_name} by ${brand?.name} with ${product.foreign_replacement_name}: price, ingredients, ethics and the honest trade-off.`,
   };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const product: any = await getProduct(id);
+  const product = await getProduct(id);
   if (!product) notFound();
 
-  const brand = product.brand;
+  const brand = firstRelation(product.brand);
   const saving = savingsPercent(product.price_inr, product.foreign_price_inr);
   const price = formatINR(product.price_inr);
   const foreignPrice = formatINR(product.foreign_price_inr);
 
-  const points = [...(product.points ?? [])].sort((a: any, b: any) => {
+  const points = [...(product.points ?? [])].sort((a, b) => {
     const ai = TAG_ORDER.indexOf(a.tag);
     const bi = TAG_ORDER.indexOf(b.tag);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
+  const specFields = getSpecFields(product.category);
+  const formatSpecValue = (value: unknown, unit?: string) => {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    if (Array.isArray(value)) return value.join(', ') || 'Not listed';
+    if (value === null || value === undefined || value === '') return 'Not listed';
+    return `${String(value)}${unit ? ` ${unit}` : ''}`;
+  };
 
   // More verified alternatives from the same category
-  let related: any[] = [];
+  let related: ProductCardData[] = [];
   if (product.category) {
     const { data } = await supabase
       .from('products')
@@ -78,7 +89,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       .eq('category', product.category)
       .neq('id', product.id)
       .limit(3);
-    related = data ?? [];
+    related = (data ?? []) as ProductCardData[];
   }
 
   return (
@@ -152,6 +163,56 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           differ, so check the comparison points below for per-unit costs.
         </p>
 
+        {specFields.length > 0 && (
+          <section className="mt-12">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 className="font-display text-3xl uppercase">Product stats</h2>
+              {product.specs_checked_at && (
+                <p className="text-xs text-ink/50">
+                  Checked {new Date(product.specs_checked_at).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
+                </p>
+              )}
+            </div>
+            <div className="mt-6 overflow-hidden rounded-3xl border border-ink/10 bg-white">
+              {specFields.map((field, index) => {
+                const indianValue = product.specs?.[field.key];
+                const foreignValue = product.foreign_specs?.[field.key];
+                return (
+                  <div
+                    key={field.key}
+                    className={`grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.2fr)] sm:px-6 ${
+                      index > 0 ? 'border-t border-ink/10' : ''
+                    }`}
+                  >
+                    <div className="text-sm font-medium">{field.label}</div>
+                    <div className="text-sm text-ink/65">
+                      <span className="mr-2 font-mono text-[10px] uppercase text-leaf sm:hidden">Indian</span>
+                      {formatSpecValue(indianValue, field.unit)}
+                    </div>
+                    <div className="text-sm text-ink/65">
+                      <span className="mr-2 font-mono text-[10px] uppercase text-ink/45 sm:hidden">Other</span>
+                      {formatSpecValue(foreignValue, field.unit)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {product.spec_sources?.indian?.length ? (
+              <p className="mt-3 text-xs text-ink/50">
+                Indian product source:{' '}
+                {product.spec_sources.indian.map((url, index) => (
+                  <span key={url}>
+                    {index > 0 ? ', ' : ''}
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="underline hover:text-ink">
+                      Deyga product page
+                    </a>
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </section>
+        )}
+
         {/* Details */}
         <section className="mt-12 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
           <div>
@@ -159,7 +220,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
             {points.length > 0 ? (
               <ul className="mt-6 space-y-4 rounded-3xl border border-ink/10 bg-white p-6 md:p-8">
-                {points.map((point: any) => (
+                {points.map((point) => (
                   <li key={point.id} className="flex gap-3 text-sm md:text-base">
                     {getIconForTag(point.tag)}
                     <div>

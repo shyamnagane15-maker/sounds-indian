@@ -3,12 +3,29 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabaseServer';
 import { CATEGORIES } from '../../../lib/categories';
 import { saveBrandProduct, deleteBrandProduct } from '../../actions';
+import ProductImageForm from '../../../components/ProductImageForm';
+import { removeBrandProductImage, uploadBrandProductImage } from './image-actions';
+import type { ComparisonPoint } from '../../../lib/productTypes';
 
 export const dynamic = 'force-dynamic';
 
 const TAG_OPTIONS = ['ingredients', 'ethics', 'price', 'sourcing', 'certification', 'other'];
 // Suggested type for each empty row, in order
 const DEFAULT_TAGS = ['ingredients', 'ethics', 'price', 'sourcing', 'certification'];
+
+type BrandProduct = {
+  id: string;
+  indian_product_name: string;
+  category: string | null;
+  price_inr: number | null;
+  buy_url: string | null;
+  foreign_replacement_name: string;
+  foreign_price_inr: number | null;
+  trade_off: string | null;
+  image_url: string | null;
+  verification_status: string;
+  points: ComparisonPoint[] | null;
+};
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-md border border-ink/20 bg-white focus:outline-none focus:border-ink';
@@ -45,7 +62,7 @@ export default async function BrandProductPage({
     .maybeSingle();
   if (!brand) redirect('/brand/dashboard');
 
-  let product: any = null;
+  let product: BrandProduct | null = null;
   if (!isNew) {
     // Only this brand's own products; anything else is a 404
     const { data } = await supabase
@@ -55,12 +72,12 @@ export default async function BrandProductPage({
       .eq('brand_id', brand.id)
       .maybeSingle();
     if (!data) notFound();
-    product = data;
+    product = data as BrandProduct;
   }
 
   const isLive = product?.verification_status === 'verified_by_team';
   const existingPoints = [...(product?.points ?? [])].sort(
-    (a: any, b: any) => tagOrder(a.tag) - tagOrder(b.tag)
+    (a, b) => tagOrder(a.tag) - tagOrder(b.tag)
   );
   const slots = Math.max(5, existingPoints.length + 1);
 
@@ -75,7 +92,7 @@ export default async function BrandProductPage({
 
       <main className="max-w-3xl mx-auto px-6 pb-20">
         <h1 className="text-3xl font-serif mb-2">
-          {isNew ? 'Add a product' : product.indian_product_name}
+          {isNew ? 'Add a product' : product?.indian_product_name}
         </h1>
         <p className="text-sm text-ink/70 mb-8">
           {brand.name} · Our team checks every claim before a product goes live.
@@ -94,7 +111,7 @@ export default async function BrandProductPage({
         )}
 
         <form action={saveBrandProduct} className="space-y-10">
-          <input type="hidden" name="id" value={isNew ? '' : product.id} />
+          <input type="hidden" name="id" value={isNew ? '' : product?.id ?? ''} />
 
           {/* Your product */}
           <section className="space-y-5">
@@ -200,8 +217,19 @@ export default async function BrandProductPage({
           </div>
         </form>
 
+        {!isNew && product && (
+          <ProductImageForm
+            productId={product.id}
+            imageUrl={product.image_url}
+            productName={product.indian_product_name}
+            category={product.category}
+            uploadAction={uploadBrandProductImage}
+            removeAction={removeBrandProductImage}
+          />
+        )}
+
         {/* Delete lives outside the main form (forms can't be nested) */}
-        {!isNew && (
+        {!isNew && product && (
           <details className="mt-12 rounded-md border border-madder/30 p-4">
             <summary className="cursor-pointer font-medium text-madder">Delete this product</summary>
             <p className="text-sm text-ink/70 my-3">

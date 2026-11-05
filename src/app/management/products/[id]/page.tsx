@@ -4,12 +4,30 @@ import { notFound } from 'next/navigation';
 import { ExternalLink } from 'lucide-react';
 import { admin } from '../../../lib/supabaseAdmin';
 import { saveProduct, deleteProduct } from './actions';
+import ProductImageForm from '../../../components/ProductImageForm';
+import { removeProductImage, uploadProductImage } from './image-actions';
+import { firstRelation, type ComparisonPoint, type ProductRelation } from '../../../lib/productTypes';
 
 export const dynamic = 'force-dynamic';
 
 const TAG_OPTIONS = ['ingredients', 'ethics', 'price', 'sourcing', 'certification', 'other'];
 // Suggested type for each empty row, in order
 const DEFAULT_TAGS = ['ingredients', 'ethics', 'price', 'sourcing', 'certification'];
+
+type ManagementProduct = {
+  id: string;
+  indian_product_name: string;
+  foreign_replacement_name: string;
+  category: string | null;
+  price_inr: number | null;
+  foreign_price_inr: number | null;
+  buy_url: string | null;
+  trade_off: string | null;
+  image_url: string | null;
+  verification_status: string;
+  brand: ProductRelation<{ name: string; location: string | null; cin: string | null; website: string | null }>;
+  points: ComparisonPoint[] | null;
+};
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-md border border-ink/20 bg-white focus:outline-none focus:border-ink';
@@ -39,9 +57,11 @@ export default async function EditProductPage({
 
   if (!product) notFound();
 
-  const isVerified = product.verification_status === 'verified_by_team';
-  const existingPoints = [...(product.points ?? [])].sort(
-    (a: any, b: any) => tagOrder(a.tag) - tagOrder(b.tag)
+  const productData = product as ManagementProduct;
+  const brand = firstRelation(productData.brand);
+  const isVerified = productData.verification_status === 'verified_by_team';
+  const existingPoints = [...(productData.points ?? [])].sort(
+    (a, b) => tagOrder(a.tag) - tagOrder(b.tag)
   );
   const slots = Math.max(5, existingPoints.length + 1);
 
@@ -56,7 +76,7 @@ export default async function EditProductPage({
 
       <main className="max-w-3xl mx-auto px-6 pb-20">
         <div className="flex items-start justify-between gap-4 mb-2">
-          <h1 className="text-3xl font-serif">{product.indian_product_name}</h1>
+          <h1 className="text-3xl font-serif">{productData.indian_product_name}</h1>
           <span
             className={`shrink-0 text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-full border ${
               isVerified ? 'border-leaf text-leaf bg-leaf/5' : 'border-gold text-ink bg-gold/20'
@@ -66,14 +86,14 @@ export default async function EditProductPage({
           </span>
         </div>
         <p className="text-sm text-ink/70 mb-1">
-          {product.brand?.name} · {product.brand?.location}
+          {brand?.name} · {brand?.location}
         </p>
         <p className="text-sm text-ink/70 mb-8">
-          CIN: <span className="font-mono">{product.brand?.cin ?? 'not recorded'}</span>
-          {product.brand?.website && (
+          CIN: <span className="font-mono">{brand?.cin ?? 'not recorded'}</span>
+          {brand?.website && (
             <>
               {' · '}
-              <a href={product.brand.website} target="_blank" rel="noopener noreferrer" className="underline hover:text-madder">
+              <a href={brand.website} target="_blank" rel="noopener noreferrer" className="underline hover:text-madder">
                 Brand website
               </a>
             </>
@@ -92,7 +112,7 @@ export default async function EditProductPage({
         )}
 
         <form action={saveProduct} className="space-y-10">
-          <input type="hidden" name="id" value={product.id} />
+          <input type="hidden" name="id" value={productData.id} />
 
           {/* Foreign product */}
           <section className="space-y-5">
@@ -100,12 +120,12 @@ export default async function EditProductPage({
             <div>
               <label htmlFor="foreign_replacement_name" className={labelClass}>Name</label>
               <input id="foreign_replacement_name" name="foreign_replacement_name" required
-                defaultValue={product.foreign_replacement_name} className={inputClass} />
+                defaultValue={productData.foreign_replacement_name} className={inputClass} />
             </div>
             <div>
               <label htmlFor="foreign_price_inr" className={labelClass}>Price in India (₹)</label>
               <input id="foreign_price_inr" name="foreign_price_inr" type="number" step="any" min="0"
-                defaultValue={product.foreign_price_inr ?? ''} className={inputClass} />
+                defaultValue={productData.foreign_price_inr ?? ''} className={inputClass} />
               <p className={hintClass}>Check this against the current listing on an Indian store.</p>
             </div>
           </section>
@@ -116,12 +136,12 @@ export default async function EditProductPage({
             <div>
               <label htmlFor="indian_product_name" className={labelClass}>Name</label>
               <input id="indian_product_name" name="indian_product_name" required
-                defaultValue={product.indian_product_name} className={inputClass} />
+                defaultValue={productData.indian_product_name} className={inputClass} />
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
              <div>
   <label htmlFor="category" className={labelClass}>Category</label>
-  <select id="category" name="category" defaultValue={product.category ?? ''} className={inputClass}>
+  <select id="category" name="category" defaultValue={productData.category ?? ''} className={inputClass}>
     <option value="">Choose a category</option>
     {CATEGORIES.map((c) => (
       <option key={c.slug} value={c.slug}>{c.label}</option>
@@ -131,15 +151,15 @@ export default async function EditProductPage({
               <div>
                 <label htmlFor="price_inr" className={labelClass}>Price (₹)</label>
                 <input id="price_inr" name="price_inr" type="number" step="any" min="0"
-                  defaultValue={product.price_inr ?? ''} className={inputClass} />
+                  defaultValue={productData.price_inr ?? ''} className={inputClass} />
               </div>
             </div>
             <div>
               <label htmlFor="buy_url" className={labelClass}>Buy link</label>
               <input id="buy_url" name="buy_url" type="url" placeholder="https://"
-                defaultValue={product.buy_url ?? ''} className={inputClass} />
-              {product.buy_url && (
-                <a href={product.buy_url} target="_blank" rel="noopener noreferrer"
+                defaultValue={productData.buy_url ?? ''} className={inputClass} />
+              {productData.buy_url && (
+                <a href={productData.buy_url} target="_blank" rel="noopener noreferrer"
                   className="mt-1 inline-flex items-center gap-1 text-xs underline hover:text-madder">
                   Open listing <ExternalLink className="w-3 h-3" />
                 </a>
@@ -181,7 +201,7 @@ export default async function EditProductPage({
               Required to verify. Be honest about where the Indian product falls short.
             </p>
             <textarea id="trade_off" name="trade_off" rows={3} maxLength={600}
-              defaultValue={product.trade_off ?? ''} className={inputClass} />
+              defaultValue={productData.trade_off ?? ''} className={inputClass} />
           </section>
 
           {/* Actions */}
@@ -204,6 +224,15 @@ export default async function EditProductPage({
           </div>
         </form>
 
+        <ProductImageForm
+          productId={productData.id}
+          imageUrl={productData.image_url}
+          productName={productData.indian_product_name}
+          category={productData.category}
+          uploadAction={uploadProductImage}
+          removeAction={removeProductImage}
+        />
+
         {/* Delete lives outside the main form (forms can't be nested) */}
         <details className="mt-12 rounded-md border border-madder/30 p-4">
           <summary className="cursor-pointer font-medium text-madder">Delete this product</summary>
@@ -211,7 +240,7 @@ export default async function EditProductPage({
             This permanently removes the product and its comparison points. The brand stays.
           </p>
           <form action={deleteProduct}>
-            <input type="hidden" name="id" value={product.id} />
+            <input type="hidden" name="id" value={productData.id} />
             <button className="bg-madder text-ivory px-5 py-2.5 rounded-md font-medium hover:bg-madder/90 transition-colors">
               Yes, delete permanently
             </button>

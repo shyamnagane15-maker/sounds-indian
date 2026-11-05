@@ -1,14 +1,31 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ArrowUpRight, Check, Scale, Search, ShieldCheck, ShoppingBag } from 'lucide-react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Check,
+  FlaskConical,
+  Info,
+  MapPinCheck,
+  Scale,
+  Search,
+  ShieldCheck,
+  ShoppingBag,
+} from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { CATEGORIES, LIVE_CATEGORIES, categoryLabel } from './lib/categories';
-import { formatINR, savingsPercent } from './lib/format';
 import SiteHeader from './components/SiteHeader';
 import SiteFooter from './components/SiteFooter';
 import ProductCard from './components/ProductCard';
 import BrandMarquee from './components/BrandMarquee';
+import FeaturedPartner from './components/FeaturedPartner';
 import VocalForLocal from './components/VocalForLocal';
+import {
+  firstRelation,
+  type ProductCardData,
+  type ProductOverviewBrand,
+  type ProductOverviewData,
+} from './lib/productTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,25 +90,21 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
     );
   }
 
-  const products: any[] = resultsRes.data ?? [];
-  const overview: any[] = overviewRes.data ?? [];
+  const products = (resultsRes.data ?? []) as ProductCardData[];
+  const overview = (overviewRes.data ?? []) as ProductOverviewData[];
 
   // Everything below is calculated from real data. Nothing is made up.
-  const brands = new Map<string, any>();
+  const brands = new Map<string, ProductOverviewBrand>();
   const categoryCounts = new Map<string, number>();
-  let featured: any = null;
-  let bestSaving = -1;
   for (const p of overview) {
-    if (p.brand?.id) brands.set(p.brand.id, p.brand);
+    const brand = firstRelation(p.brand);
+    if (brand?.id) brands.set(brand.id, brand);
     if (p.category) categoryCounts.set(p.category, (categoryCounts.get(p.category) ?? 0) + 1);
-    const s = savingsPercent(p.price_inr, p.foreign_price_inr) ?? 0;
-    if (!featured || s > bestSaving) {
-      featured = p;
-      bestSaving = s;
-    }
   }
   const productCount = overview.length;
-  const featuredSaving = featured ? savingsPercent(featured.price_inr, featured.foreign_price_inr) : null;
+
+  // The hero feature points at the brand's verified product page when it exists.
+  const featuredProductId = overview.find((p) => firstRelation(p.brand)?.name === 'Aretto')?.id;
 
   // Category chips keep the current search text
   const hrefFor = (category?: string) => {
@@ -116,8 +129,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
             is visible without scrolling. 7.5rem is roughly the height of the header. */}
         <div className="flex min-h-[calc(100svh-7.5rem)] flex-col">
         <section className="flex flex-1 items-center">
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-8 lg:grid-cols-2">
-          <div>
+          <div className="mx-auto grid w-full max-w-[86rem] items-center gap-10 px-6 py-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-16">
+          {/* Featured verified brand, left and in the open (no card, no border) */}
+          <FeaturedPartner productId={featuredProductId} />
+
+          <div className="relative mt 5">
+            <VocalForLocal className="absolute -top-8 right-0 scale-[0.72] origin-top-right sm:-top-24 sm:scale-90" />
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl short:lg:text-5xl leading-[0.95] uppercase">
               Find the Indian alternative to what you use
             </h1>
@@ -125,16 +142,22 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
               Compare global products with verified Indian alternatives: price, ingredients, ethics
               and the honest trade-off, side by side.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-nowrap gap-2 sm:gap-3">
               <a
                 href="#results"
-                className="rounded-full bg-ink text-ivory px-8 py-3.5 font-medium hover:bg-ink/90 transition-colors"
+                className="whitespace-nowrap rounded-full bg-ink px-4 py-3 text-sm font-medium text-ivory transition-colors hover:bg-ink/90 sm:px-8 sm:py-3.5 sm:text-base"
               >
                 Browse alternatives
               </a>
               <a
+                href="/compareai"
+                className="whitespace-nowrap rounded-full border border-leaf/40 bg-leaf/5 px-4 py-3 text-sm font-medium text-leaf transition-colors hover:bg-leaf/10 sm:px-8 sm:py-3.5 sm:text-base"
+              >
+                Compare AI
+              </a>
+              <a
                 href="#how-it-works"
-                className="rounded-full border border-ink/30 px-8 py-3.5 font-medium hover:bg-ink/5 transition-colors"
+                className="whitespace-nowrap rounded-full border border-ink/30 px-4 py-3 text-sm font-medium transition-colors hover:bg-ink/5 sm:px-8 sm:py-3.5 sm:text-base"
               >
                 How it works
               </a>
@@ -155,58 +178,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
               </dl>
             )}
           </div>
-
-          {/* Hero art: a real comparison from your catalogue */}
-          {featured && (
-            <div className="relative hidden lg:block">
-              <Sparkle className="absolute -top-4 left-6 h-10 w-10 text-ink" />
-              <VocalForLocal className="absolute -top-6 -right-3 z-10 w-36" />
-              <Sparkle className="absolute bottom-12 -left-3 h-8 w-8 text-ink" />
-              <div className="rounded-[2rem] bg-gold/25 p-6 xl:p-8 short:p-4">
-                <Link
-                  href={`/product/${featured.id}`}
-                  className="block rotate-1 rounded-3xl bg-white p-6 short:p-5 shadow-xl transition hover:rotate-0"
-                >
-                  <div className="text-xs font-mono uppercase tracking-wider text-ink/50">
-                    Featured comparison
-                  </div>
-
-                  <div className="mt-4 opacity-60">
-                    <div className="text-xs font-mono uppercase tracking-wider">Foreign</div>
-                    <div className="font-display text-xl leading-tight mt-1">{featured.foreign_replacement_name}</div>
-                    <div className="mt-1 text-lg line-through">{formatINR(featured.foreign_price_inr)}</div>
-                  </div>
-
-                  <div className="my-4 flex items-center gap-3 text-xs font-mono text-ink/50">
-                    <span className="h-px flex-1 bg-ink/15" /> REPLACED BY <span className="h-px flex-1 bg-ink/15" />
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-mono uppercase tracking-wider text-leaf">Indian alternative</div>
-                    <div className="font-display text-2xl leading-tight mt-1">{featured.indian_product_name}</div>
-                    <div className="mt-1 text-sm text-ink/70">by {featured.brand?.name}</div>
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                      <span className="font-display text-3xl">{formatINR(featured.price_inr)}</span>
-                      {featuredSaving !== null && (
-                        <span className="rounded-full bg-leaf/15 px-2.5 py-1 text-xs font-bold text-leaf">
-                          {featuredSaving}% lower price
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 inline-flex items-center gap-1 text-sm font-medium">
-                    See full comparison <ArrowUpRight className="h-4 w-4" />
-                  </div>
-                </Link>
-              </div>
-            </div>
-          )}
           </div>
         </section>
 
         {/* BRAND STRIP (scrolling) */}
-        <BrandMarquee brands={[...brands.values()]} />
+        <div className="-mt-25">
+          <BrandMarquee brands={[...brands.values()]} />
+        </div>
         </div>
 
         {/* CATEGORY TILES */}
@@ -333,6 +311,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
         {/* HOW IT WORKS */}
         <section id="how-it-works" className="max-w-6xl mx-auto px-6 pt-24 scroll-mt-6">
           <h2 className="font-display text-4xl md:text-5xl uppercase text-center">How it works</h2>
+
+          <h3 id="compare-ai" className="mt-12 scroll-mt-24 font-display text-2xl uppercase text-center">Compare AI</h3>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
               {
@@ -362,6 +342,54 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
                 <p className="mt-2 text-sm text-ink/70">{text}</p>
               </div>
             ))}
+          </div>
+
+          <div className="mt-16">
+            <div className="flex items-center justify-center gap-2">
+              <h3 className="font-display text-2xl uppercase text-center">Get the SoundsIndian Badge</h3>
+              <details className="group relative">
+                <summary
+                  className="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full border border-ink/30 text-ink/60 transition-colors hover:border-ink hover:text-ink"
+                  aria-label="What the SoundsIndian badge means"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </summary>
+                <div className="absolute right-0 top-8 z-10 w-82 rounded-2xl border border-ink/10 bg-white p-4 text-sm font-sans normal-case text-ink shadow-xl">
+                  The SoundsIndian Badge is a trust and quality-verification mark for Indian brands. 
+                  For customers, it acts as a quick signal that the product has been assessed against transparent standards. For startups, it provides third-party credibility that is usually difficult for small brands to build on their own.
+                </div>
+              </details>
+            </div>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  icon: FlaskConical,
+                  title: 'Research Team Sample Testing',
+                  text: 'Our team evaluates product samples against quality, consistency and authenticity checks.',
+                },
+                {
+                  icon: MapPinCheck,
+                  title: 'On Site Consistency Verification',
+                  text: 'We verify that the product experience remains consistent with the evidence submitted.',
+                },
+                {
+                  icon: BadgeCheck,
+                  title: 'Get SoundsIndian Verified Badge',
+                  text: 'Qualifying brands receive the SoundsIndian badge to show their verification publicly.',
+                },
+              ].map(({ icon: Icon, title, text }, i) => (
+                <div key={title} className="rounded-3xl border border-ink/10 bg-white p-8">
+                  <div className="flex items-center justify-between">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-leaf text-ivory">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="font-display text-4xl text-ink/15">0{i + 1}</span>
+                  </div>
+                  <h4 className="mt-6 font-display text-xl">{title}</h4>
+                  <p className="mt-2 text-sm text-ink/70">{text}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="mt-6 rounded-3xl bg-leaf/10 p-8 md:p-10">

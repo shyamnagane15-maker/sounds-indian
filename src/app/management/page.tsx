@@ -1,11 +1,26 @@
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { admin } from '../lib/supabaseAdmin';
+import { firstRelation, type ProductRelation } from '../lib/productTypes';
 
 export const dynamic = 'force-dynamic';
 
+type QueueProduct = {
+  id: string;
+  indian_product_name: string;
+  foreign_replacement_name: string;
+  buy_url: string | null;
+  verification_status: string;
+  price_inr: number | null;
+  foreign_price_inr: number | null;
+  trade_off: string | null;
+  category: string | null;
+  brand: ProductRelation<{ name: string }>;
+  points: { id: string }[] | null;
+};
+
 // Works out what still has to be filled in before a product can be verified
-function missingDetails(p: any): string[] {
+function missingDetails(p: QueueProduct): string[] {
   const missing: string[] = [];
   if (p.price_inr === null) missing.push('price');
   if (!p.category) missing.push('category');
@@ -33,8 +48,9 @@ export default async function ManagementDashboard() {
     );
   }
 
-  const pending = (products ?? []).filter((p: any) => p.verification_status === 'self_reported');
-  const live = (products ?? []).filter((p: any) => p.verification_status === 'verified_by_team');
+  const queue = (products ?? []) as QueueProduct[];
+  const pending = queue.filter((p) => p.verification_status === 'self_reported');
+  const live = queue.filter((p) => p.verification_status === 'verified_by_team');
 
   return (
     <div className="min-h-screen bg-ivory text-ink font-sans">
@@ -79,7 +95,7 @@ export default async function ManagementDashboard() {
                   </td>
                 </tr>
               ) : (
-                pending.map((product: any) => {
+                pending.map((product) => {
                   const missing = missingDetails(product);
                   return (
                     <tr key={product.id} className="border-b border-ink/5 hover:bg-ink/[0.02]">
@@ -97,7 +113,7 @@ export default async function ManagementDashboard() {
                           </a>
                         )}
                       </td>
-                      <td className="p-4 text-ink/70">{product.brand?.name}</td>
+                      <td className="p-4 text-ink/70">{firstRelation(product.brand)?.name}</td>
                       <td className="p-4 text-ink/70">{product.foreign_replacement_name}</td>
                       <td className="p-4 text-sm">
                         {missing.length > 0 ? (
@@ -143,10 +159,10 @@ export default async function ManagementDashboard() {
                   </td>
                 </tr>
               ) : (
-                live.map((product: any) => (
+                live.map((product) => (
                   <tr key={product.id} className="border-b border-ink/5 hover:bg-ink/[0.02]">
                     <td className="p-4 font-medium">{product.indian_product_name}</td>
-                    <td className="p-4 text-ink/70">{product.brand?.name}</td>
+                    <td className="p-4 text-ink/70">{firstRelation(product.brand)?.name}</td>
                     <td className="p-4 text-ink/70">{product.foreign_replacement_name}</td>
                     <td className="p-4 text-right">
                       <Link

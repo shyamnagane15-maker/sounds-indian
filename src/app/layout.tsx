@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from 'next';
+import type { ReactNode } from 'react';
+import PeepingDiscountSticker from './components/PeepingDiscountSticker';
+import OpeningIntro from './components/OpeningIntro';
 import { Fredoka, Nunito } from 'next/font/google';
 import './globals.css';
 
@@ -30,10 +33,35 @@ export const viewport: Viewport = {
   colorScheme: 'only light',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Runs before first paint: shows the intro overlay immediately on a first
+// visit, and never shows it to returning visitors in the same session.
+const introGuard = `
+(function () {
+  try {
+    if (window.sessionStorage.getItem('sounds-indian-opening-intro-played') !== 'true') {
+      document.documentElement.classList.add('opening-intro-active');
+    }
+  } catch (e) {
+    document.documentElement.classList.add('opening-intro-active');
+  }
+})();
+`;
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${nunito.variable} ${fredoka.variable}`}>
-      <body className="bg-ivory text-ink font-sans antialiased">{children}</body>
+    <html
+      lang="en"
+      className={`${nunito.variable} ${fredoka.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: introGuard }} />
+      </head>
+      <body className="bg-ivory text-ink font-sans antialiased">
+        <PeepingDiscountSticker />
+        <OpeningIntro />
+        {children}
+      </body>
     </html>
   );
 }

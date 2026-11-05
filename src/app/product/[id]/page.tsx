@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import type { Metadata } from 'next';
+import ProductImage from '../../components/ProductImage';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AlertCircle, Check, ExternalLink, FlaskConical, Leaf, Tag } from 'lucide-react';
@@ -9,6 +10,8 @@ import { formatINR, savingsPercent } from '../../lib/format';
 import SiteHeader from '../../components/SiteHeader';
 import SiteFooter from '../../components/SiteFooter';
 import ProductCard from '../../components/ProductCard';
+import { firstRelation, type ProductCardData, type ProductDetailData } from '../../lib/productTypes';
+import VerifiedStamp from '../../components/VerifiedStamp';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +38,7 @@ const getProduct = cache(async (id: string) => {
     .eq('id', id)
     .eq('verification_status', 'verified_by_team')
     .maybeSingle();
-  return data;
+  return data as ProductDetailData | null;
 });
 
 export async function generateMetadata({
@@ -46,30 +49,32 @@ export async function generateMetadata({
   const { id } = await params;
   const product = await getProduct(id);
   if (!product) return { title: 'Product not found' };
+  const brand = firstRelation(product.brand);
   return {
     title: `${product.indian_product_name}: Indian alternative to ${product.foreign_replacement_name}`,
-    description: `Compare ${product.indian_product_name} by ${product.brand?.name} with ${product.foreign_replacement_name}: price, ingredients, ethics and the honest trade-off.`,
+    description: `Compare ${product.indian_product_name} by ${brand?.name} with ${product.foreign_replacement_name}: price, ingredients, ethics and the honest trade-off.`,
+    openGraph: { images: [product.image_url ?? product.foreign_image_url].filter((u): u is string => Boolean(u)) },
   };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const product: any = await getProduct(id);
+  const product = await getProduct(id);
   if (!product) notFound();
 
-  const brand = product.brand;
+  const brand = firstRelation(product.brand);
   const saving = savingsPercent(product.price_inr, product.foreign_price_inr);
   const price = formatINR(product.price_inr);
   const foreignPrice = formatINR(product.foreign_price_inr);
 
-  const points = [...(product.points ?? [])].sort((a: any, b: any) => {
+  const points = [...(product.points ?? [])].sort((a, b) => {
     const ai = TAG_ORDER.indexOf(a.tag);
     const bi = TAG_ORDER.indexOf(b.tag);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
   // More verified alternatives from the same category
-  let related: any[] = [];
+  let related: ProductCardData[] = [];
   if (product.category) {
     const { data } = await supabase
       .from('products')
@@ -78,7 +83,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       .eq('category', product.category)
       .neq('id', product.id)
       .limit(3);
-    related = data ?? [];
+    related = (data ?? []) as ProductCardData[];
   }
 
   return (
@@ -113,14 +118,19 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               {brand?.location && <> ({brand.location})</>}
             </p>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-full border-2 border-dashed border-leaf bg-leaf/5 px-4 py-2 text-sm font-bold text-leaf">
-            <Check className="h-4 w-4" /> Verified by our team
-          </span>
+          <VerifiedStamp className="ml-auto h-24 w-24 md:h-28 md:w-28" />
         </header>
 
         {/* Side-by-side comparison */}
-        <section className="mt-10 grid gap-6 lg:grid-cols-[1fr_auto_1fr]">
+        <section className="mt-10 grid gap-6 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
           <div className="rounded-3xl border-2 border-dashed border-ink/20 bg-ink/[0.02] p-6 md:p-8 opacity-80">
+            <ProductImage
+              src={product.foreign_image_url}
+              alt={product.foreign_replacement_name}
+              category={product.category}
+              sizes="(min-width: 1024px) 40vw, 100vw"
+              className="mb-6 aspect-[4/3] rounded-2xl"
+            />
             <div className="text-xs font-mono uppercase tracking-wider text-ink/60 mb-2">Foreign counterpart</div>
             <h2 className="font-display text-2xl md:text-3xl leading-tight">{product.foreign_replacement_name}</h2>
             <div className="mt-8 text-4xl font-bold text-ink/60">{foreignPrice || 'Price not listed'}</div>
@@ -134,6 +144,14 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="rounded-3xl border border-ink/10 bg-white p-6 md:p-8 shadow-sm">
+            <ProductImage
+              src={product.image_url}
+              alt={product.indian_product_name}
+              category={product.category}
+              sizes="(min-width: 1024px) 40vw, 100vw"
+              priority
+              className="mb-6 aspect-[4/3] rounded-2xl"
+            />
             <div className="text-xs font-mono uppercase tracking-wider text-leaf mb-2">Indian alternative</div>
             <h2 className="font-display text-2xl md:text-3xl leading-tight">{product.indian_product_name}</h2>
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -159,7 +177,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
             {points.length > 0 ? (
               <ul className="mt-6 space-y-4 rounded-3xl border border-ink/10 bg-white p-6 md:p-8">
-                {points.map((point: any) => (
+                {points.map((point) => (
                   <li key={point.id} className="flex gap-3 text-sm md:text-base">
                     {getIconForTag(point.tag)}
                     <div>

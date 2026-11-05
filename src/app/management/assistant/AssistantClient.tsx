@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -568,19 +568,21 @@ function CataloguePanel({ categories, rows }: { categories: CategoryOption[]; ro
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const editVersion = useRef(0);
 
   const visible = rows.filter((r) => r.category === category);
 
   function open(row: CatalogueRow, withAi: boolean) {
     setError(null);
     setMessage(null);
+    const version = ++editVersion.current;
     const base = cleanSpecs(row.category ?? '', row.specs);
 
     if (!withAi) {
       setEditing({
         id: row.id, name: row.name, category: row.category ?? '', specs: base,
         sizeValue: row.sizeValue !== null ? String(row.sizeValue) : '', sizeUnit: row.sizeUnit ?? '',
-        sources: [], notes: '', version: Date.now(),
+        sources: [], notes: '', version,
       });
       return;
     }
@@ -601,7 +603,7 @@ function CataloguePanel({ categories, rows }: { categories: CategoryOption[]; ro
         id: row.id, name: row.name, category: row.category ?? '', specs: merged,
         sizeValue: ex.sizeValue !== null ? String(ex.sizeValue) : row.sizeValue !== null ? String(row.sizeValue) : '',
         sizeUnit: ex.sizeUnit ?? row.sizeUnit ?? '',
-        sources: ex.sources, notes: ex.notes, version: Date.now(),
+        sources: ex.sources, notes: ex.notes, version,
       });
     });
   }

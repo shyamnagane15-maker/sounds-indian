@@ -28,6 +28,34 @@
   --font-display: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
 }
 
+@keyframes peepSlide {
+  0%, 20% {
+    transform: translateX(-91%);
+  }
+  45%, 70% {
+    transform: translateX(-78%);
+  }
+  90%, 100% {
+    transform: translateX(-91%);
+  }
+}
+
+.peep-sticker-animated {
+  animation: peepSlide 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Keep the sticker visible while it is hovered or keyboard-focused. */
+.peep-sticker-animated:hover,
+.peep-sticker-animated:focus-within {
+  animation: none;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .peep-sticker-animated {
+    animation: none;
+  }
+}
 /* Scrolling brand ticker (see components/BrandMarquee.tsx) */
 @keyframes marquee {
   from { transform: translateX(0); }
@@ -67,4 +95,188 @@
 @media (prefers-reduced-motion: reduce) {
   .vocal-pulse  { animation: none; }
   .vocal-ripple { display: none; }
+}
+
+html.opening-intro-active {
+  overflow: hidden;
+}
+
+html.opening-intro-active .peep-sticker-animated {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Hidden by default. An inline script in <head> adds .opening-intro-active
+   before first paint, so the overlay is opaque from the very first frame
+   and never flashes for returning visitors. */
+.opening-intro {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  place-items: center;
+  overflow: hidden;
+  background: #FFFFFF;
+  color: #0A0A0A;
+}
+
+html.opening-intro-active .opening-intro {
+  display: grid;
+}
+
+.opening-intro::before {
+  content: "";
+  position: absolute;
+  width: min(60vw, 520px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(163, 163, 163, 0.12) 0, rgba(163, 163, 163, 0) 68%);
+}
+
+.opening-intro-center {
+  position: relative;
+  width: min(88vw, 620px);
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+}
+
+.opening-intro-words {
+  position: absolute;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.opening-intro-words.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.opening-intro-word {
+  font-family: var(--font-fredoka), sans-serif;
+  font-size: clamp(3rem, 9vw, 6.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  animation: openingWord 480ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.opening-intro-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 320ms ease, transform 500ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.opening-intro-brand.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.opening-intro-logo {
+  width: clamp(220px, 32vw, 310px);
+  transform-origin: center;
+  animation: openingLogoIn 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.opening-intro-logo svg {
+  height: 1.75rem;
+}
+
+.opening-intro-tagline {
+  margin: 0;
+  opacity: 0;
+  transform: translateY(6px);
+  color: rgba(10, 10, 10, 0.72);
+  font-size: clamp(0.95rem, 2vw, 1.125rem);
+  letter-spacing: 0.01em;
+  text-align: center;
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.opening-intro-tagline.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Only the final exit fades the overlay out */
+.opening-intro.is-phase-exit {
+  animation: openingExit 800ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.opening-intro-skip {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  min-height: 44px;
+  border: 1px solid rgba(10, 10, 10, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.65rem 1rem;
+  color: #0A0A0A;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.opening-intro-skip:hover {
+  background: #0A0A0A;
+  color: #FFFFFF;
+}
+
+.opening-intro-skip:focus-visible {
+  outline: 3px solid rgba(185, 28, 28, 0.35);
+  outline-offset: 3px;
+}
+
+@keyframes openingWord {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes openingLogoIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(10px);
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes openingExit {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Reduced motion is handled in CSS, so there is no render-time JS check
+   (which caused a hydration mismatch). Show the logo + tagline statically. */
+@media (prefers-reduced-motion: reduce) {
+  .opening-intro-words {
+    display: none;
+  }
+
+  .opening-intro-brand,
+  .opening-intro-tagline {
+    opacity: 1;
+    transform: none;
+  }
+
+  .opening-intro,
+  .opening-intro-brand,
+  .opening-intro-words,
+  .opening-intro-word,
+  .opening-intro-logo,
+  .opening-intro-tagline {
+    animation: none !important;
+    transition: none !important;
+  }
 }

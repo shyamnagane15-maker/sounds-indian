@@ -47,7 +47,7 @@ export default async function AssistantPage() {
     specs: (p.specs && typeof p.specs === 'object' ? p.specs : {}) as Record<string, unknown>,
   }));
 
-  const keyMissing = !process.env.ANTHROPIC_API_KEY;
+  const keyMissing = !process.env.FREELLMAPI_API_KEY && !process.env.AI_GATEWAY_API_KEY;
 
   return (
     <div className="min-h-screen bg-ivory text-ink font-sans">
@@ -75,7 +75,7 @@ export default async function AssistantPage() {
 
         {keyMissing && (
           <p className="mb-8 rounded-md border border-madder/30 bg-madder/5 p-4 text-sm text-madder">
-            The AI isn&apos;t connected yet. Add <code className="font-mono">ANTHROPIC_API_KEY</code> to{' '}
+            The AI isn&apos;t connected yet. Add <code className="font-mono">FREELLMAPI_API_KEY</code> to{' '}
             <code className="font-mono">.env.local</code> and restart <code className="font-mono">npx next dev</code>.
             Without it, you can still edit stats by hand and use the matching.
           </p>

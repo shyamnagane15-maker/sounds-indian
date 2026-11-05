@@ -274,6 +274,8 @@ export type Candidate = {
   sizeValue: number | null;
   sizeUnit: string | null;
   specs: Specs;
+  imageUrl?: string | null;
+  buyUrl?: string | null;
 };
 
 export type RankedMatch = Candidate & { result: MatchResult };

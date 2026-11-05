@@ -7,31 +7,47 @@
 
 import { cleanSpecs, getSpecFields, SIZE_UNITS, type SpecField, type Specs } from './specs';
 
-const API_URL = 'https://api.anthropic.com/v1/messages';
-// You can change the model with ANTHROPIC_MODEL in .env.local, without touching code
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
+const DEFAULT_FREE_LLM_BASE_URL = 'http://localhost:3001/v1';
+const DEFAULT_FREE_LLM_MODEL = 'gpt-oss-120b';
 
-type Block = { type: string; [key: string]: unknown };
-type ApiResponse = { content: Block[]; stop_reason: string };
+type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: unknown };
+type ChatApiResponse = {
+  choices?: Array<{ message?: { content?: unknown } }>;
+  error?: { message?: string };
+};
 
-async function callClaude(body: Record<string, unknown>): Promise<ApiResponse> {
-  const key = process.env.ANTHROPIC_API_KEY;
+function chatCompletionsUrl(): string {
+  const baseUrl = (process.env.FREELLMAPI_BASE_URL || DEFAULT_FREE_LLM_BASE_URL).replace(/\/+$/, '');
+  return baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
+}
+
+async function callLLM(input: {
+  system: string;
+  messages: ChatMessage[];
+  maxTokens: number;
+}): Promise<string> {
+  const key = process.env.FREELLMAPI_API_KEY || process.env.AI_GATEWAY_API_KEY;
   if (!key) {
-    throw new Error('ANTHROPIC_API_KEY is not set. Add it to .env.local and restart the dev server.');
+    throw new Error('FREELLMAPI_API_KEY is not set. Add your unified FreeLLMAPI key to .env.local and restart the dev server.');
   }
+  const model = process.env.FREELLMAPI_MODEL || DEFAULT_FREE_LLM_MODEL;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 55_000);
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(chatCompletionsUrl(), {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
+        authorization: `Bearer ${key}`,
       },
-      body: JSON.stringify({ model: MODEL, ...body }),
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: input.system }, ...input.messages],
+        max_tokens: input.maxTokens,
+        temperature: 0.2,
+      }),
       signal: controller.signal,
     });
 
@@ -45,7 +61,12 @@ async function callClaude(body: Record<string, unknown>): Promise<ApiResponse> {
       }
       throw new Error(`The AI service returned an error (${res.status}). ${detail}`.trim());
     }
-    return (await res.json()) as ApiResponse;
+    const json = (await res.json()) as ChatApiResponse;
+    const content = json.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') {
+      throw new Error('The AI service returned an unexpected response.');
+    }
+    return content;
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       throw new Error('The AI request took too long. Try again, or add the product page link to help it.');
@@ -54,13 +75,6 @@ async function callClaude(body: Record<string, unknown>): Promise<ApiResponse> {
   } finally {
     clearTimeout(timer);
   }
-}
-
-function textOf(blocks: Block[]): string {
-  return blocks
-    .filter((b) => b.type === 'text' && typeof b.text === 'string')
-    .map((b) => b.text as string)
-    .join('');
 }
 
 function parseJsonObject(text: string): Record<string, unknown> {
@@ -79,16 +93,6 @@ function parseJsonObject(text: string): Record<string, unknown> {
   }
   throw new Error('The AI reply could not be read. Try again.');
 }
-
-const isHttpUrl = (u: unknown): u is string => {
-  if (typeof u !== 'string') return false;
-  try {
-    const p = new URL(u).protocol;
-    return p === 'http:' || p === 'https:';
-  } catch {
-    return false;
-  }
-};
 
 /* ------------------------------------------------------------------ */
 /* Step 1: find a product's stats on the web                            */
@@ -158,43 +162,12 @@ export async function extractSpecs(input: {
     .filter((line) => line !== '')
     .join('\n');
 
-  type Message = { role: 'user' | 'assistant'; content: unknown };
-  let messages: Message[] = [{ role: 'user', content: prompt }];
-  const retrieved: string[] = [];
-  const cited = new Set<string>();
-  let finalBlocks: Block[] = [];
-
-  // The search tool can pause a long turn. If so, hand the turn back so it can finish.
-  for (let turn = 0; turn < 3; turn++) {
-    const res = await callClaude({
-      max_tokens: 2500,
-      system,
-      messages,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
-    });
-
-    for (const block of res.content) {
-      if (block.type === 'web_search_tool_result' && Array.isArray(block.content)) {
-        for (const r of block.content as Block[]) {
-          if (r.type === 'web_search_result' && isHttpUrl(r.url)) retrieved.push(r.url);
-        }
-      }
-      if (block.type === 'text' && Array.isArray(block.citations)) {
-        for (const c of block.citations as Block[]) {
-          if (isHttpUrl(c.url)) cited.add(c.url);
-        }
-      }
-    }
-
-    finalBlocks = res.content;
-    if (res.stop_reason === 'pause_turn') {
-      messages = [...messages, { role: 'assistant', content: res.content }];
-      continue;
-    }
-    break;
-  }
-
-  const data = parseJsonObject(textOf(finalBlocks));
+  const text = await callLLM({
+    maxTokens: 2500,
+    system,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const data = parseJsonObject(text);
 
   const num = (v: unknown): number | null => {
     const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(/,/g, ''));
@@ -207,8 +180,45 @@ export async function extractSpecs(input: {
     sizeUnit: (SIZE_UNITS as readonly string[]).includes(unit) ? unit : null,
     price: num(data.price_inr),
     specs: cleanSpecs(input.category, data.specs),
-    sources: (cited.size > 0 ? [...cited] : retrieved).slice(0, 5),
+    sources: [],
     notes: String(data.notes ?? '').slice(0, 300),
+  };
+}
+
+export async function identifyProductFromImage(input: {
+  imageBase64: string;
+  mediaType: string;
+  category: string;
+}): Promise<{ name: string; brand: string; category: string }> {
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!allowedTypes.has(input.mediaType)) {
+    throw new Error('Upload a JPEG, PNG or WebP product photo.');
+  }
+  if (input.imageBase64.length > 6_000_000) {
+    throw new Error('The product photo is too large. Use an image smaller than 4 MB.');
+  }
+
+  const text = await callLLM({
+    maxTokens: 300,
+    system: 'Identify the branded consumer product shown in the image. Reply with one JSON object only. Do not guess when the label is unreadable.',
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: `data:${input.mediaType};base64,${input.imageBase64}` } },
+        {
+          type: 'text',
+          text: `Return {"name":"exact product name shown","brand":"brand shown","category":"${input.category}"}. If the label is unreadable, return empty strings.`,
+        },
+      ],
+    }],
+  });
+  const data = parseJsonObject(text);
+  const name = String(data.name ?? '').trim().slice(0, 150);
+  if (!name) throw new Error('The AI could not read a product name from this photo. Try a clearer image or enter the name.');
+  return {
+    name,
+    brand: String(data.brand ?? '').trim().slice(0, 80),
+    category: input.category,
   };
 }
 
@@ -240,13 +250,13 @@ export async function draftTradeOff(input: {
     ...input.facts.map((f) => `- ${f}`),
   ].join('\n');
 
-  const res = await callClaude({
-    max_tokens: 600,
+  const text = await callLLM({
+    maxTokens: 600,
     system,
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const data = parseJsonObject(textOf(res.content));
+  const data = parseJsonObject(text);
   const tradeOff = String(data.trade_off ?? '').trim();
   if (tradeOff.length < 10) throw new Error('The AI did not write a usable trade-off. Try again.');
 

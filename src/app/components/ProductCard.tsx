@@ -1,9 +1,12 @@
 import Link from 'next/link';
+import ProductImage from './ProductImage';
 import { Check, ArrowUpRight } from 'lucide-react';
 import { categoryLabel } from '../lib/categories';
 import { formatINR, savingsPercent } from '../lib/format';
+import { firstRelation, type ProductCardData } from '../lib/productTypes';
 
-export default function ProductCard({ product }: { product: any }) {
+export default function ProductCard({ product }: { product: ProductCardData }) {
+  const brand = firstRelation(product.brand);
   const saving = savingsPercent(product.price_inr, product.foreign_price_inr);
   const price = formatINR(product.price_inr);
   const foreignPrice = formatINR(product.foreign_price_inr);
@@ -13,6 +16,14 @@ export default function ProductCard({ product }: { product: any }) {
       href={`/product/${product.id}`}
       className="group flex flex-col rounded-3xl border border-ink/10 bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-lg"
     >
+      <ProductImage
+        src={product.image_url}
+        alt={product.indian_product_name}
+        category={product.category}
+        sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 92vw"
+        className="mb-5 aspect-[4/3] rounded-2xl"
+      />
+
       <div className="flex items-start justify-between gap-3">
         <span className="rounded-full bg-ink/5 px-3 py-1 text-xs font-medium">
           {categoryLabel(product.category) ?? 'Uncategorised'}
@@ -23,7 +34,7 @@ export default function ProductCard({ product }: { product: any }) {
       </div>
 
       <h3 className="font-display text-2xl leading-tight mt-5">{product.indian_product_name}</h3>
-      <p className="text-sm text-ink/70 mt-1">by {product.brand?.name}</p>
+      <p className="text-sm text-ink/70 mt-1">by {brand?.name}</p>
 
       <div className="mt-5 rounded-2xl bg-ink/[0.04] p-4">
         <div className="text-xs font-mono uppercase tracking-wider text-ink/50 mb-1">Replaces</div>

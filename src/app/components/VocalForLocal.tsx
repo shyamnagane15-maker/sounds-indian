@@ -3,7 +3,7 @@
 // The animation switches itself off for visitors who prefer reduced motion.
 export default function VocalForLocal({ className = '' }: { className?: string }) {
   return (
-    <div className={`-rotate-[5deg] ${className}`} role="note" aria-label="Vocal for local">
+    <div className={`rotate-[10deg] ${className}`} role="note" aria-label="Vocal for local">
       {/* Soft saffron ripple that spreads out behind the badge */}
       <span aria-hidden="true" className="vocal-ripple absolute inset-0 rounded-2xl bg-saffron" />
 
