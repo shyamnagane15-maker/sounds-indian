@@ -14,7 +14,10 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'deyga.in', pathname: '/cdn/shop/**' },
     ],
   },
-  experimental: { serverActions: { bodySizeLimit: '3mb' } },
+  experimental: {
+    serverActions: { bodySizeLimit: '6mb' },
+  },
 };
+
 
 export default nextConfig;

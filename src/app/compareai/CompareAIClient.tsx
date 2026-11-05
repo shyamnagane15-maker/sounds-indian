@@ -56,13 +56,21 @@ export default function CompareAIClient({ categories }: { categories: CategoryOp
     setBusy('photo');
     setError('');
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set('photo', photo);
-      const result = await identifyPhoto(formData, category);
-      setBusy(null);
-      if (!result.ok) return setError(result.error);
-      setName(result.data.name);
-      setBrand(result.data.brand);
+      try {
+        const formData = new FormData();
+        formData.set('photo', photo);
+        const result = await identifyPhoto(formData, category);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setName(result.data.name);
+        setBrand(result.data.brand);
+      } catch {
+        setError('Could not read the photo. It may be too large, or the AI service is unavailable. Try again.');
+      } finally {
+        setBusy(null);
+      }
     });
   }
 
@@ -73,14 +81,22 @@ export default function CompareAIClient({ categories }: { categories: CategoryOp
     setFacts([]);
     setSelectedId('');
     startTransition(async () => {
-      const result = await analyseProduct({ category, name, brand, url });
-      setBusy(null);
-      if (!result.ok) return setError(result.error);
-      setAnalysis(result);
-      setForeignSpecs(result.data.extraction.specs);
-      setForeignPrice(result.data.extraction.price);
-      setForeignSize(result.data.extraction.sizeValue);
-      setForeignUnit(result.data.extraction.sizeUnit);
+      try {
+        const result = await analyseProduct({ category, name, brand, url });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setAnalysis(result);
+        setForeignSpecs(result.data.extraction.specs);
+        setForeignPrice(result.data.extraction.price);
+        setForeignSize(result.data.extraction.sizeValue);
+        setForeignUnit(result.data.extraction.sizeUnit);
+      } catch {
+        setError('The request failed or timed out. Please try again.');
+      } finally {
+        setBusy(null);
+      }
     });
   }
 
@@ -89,19 +105,27 @@ export default function CompareAIClient({ categories }: { categories: CategoryOp
     setBusy('tradeoff');
     setError('');
     startTransition(async () => {
-      const result = await compareWithIndianProduct({
-        category,
-        foreignName: name.trim(),
-        foreignSpecs,
-        foreignPrice,
-        foreignSizeValue: foreignSize,
-        foreignSizeUnit: foreignUnit,
-        productId: selected.id,
-      });
-      setBusy(null);
-      if (!result.ok) return setError(result.error);
-      setTradeOff(result.data.tradeOff);
-      setFacts(result.data.facts);
+      try {
+        const result = await compareWithIndianProduct({
+          category,
+          foreignName: name.trim(),
+          foreignSpecs,
+          foreignPrice,
+          foreignSizeValue: foreignSize,
+          foreignSizeUnit: foreignUnit,
+          productId: selected.id,
+        });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setTradeOff(result.data.tradeOff);
+        setFacts(result.data.facts);
+      } catch {
+        setError('Could not write the trade-off. Please try again.');
+      } finally {
+        setBusy(null);
+      }
     });
   }
 
@@ -176,7 +200,7 @@ export default function CompareAIClient({ categories }: { categories: CategoryOp
           <section className="mt-12 grid gap-6 lg:grid-cols-[1fr_auto_1fr]">
             <ProductCardSide title="Foreign product" name={name} brand={brand} category={category} price={foreignPrice} />
             <div className="flex items-center justify-center font-mono text-xs text-ink/40 lg:px-3">VS</div>
-            <IndianProductSide product={selected} />
+            <IndianProductSide product={selected} category={category} />
           </section>
 
           <section className="mt-12">
@@ -256,12 +280,12 @@ function ProductCardSide({ title, name, brand, category, price }: { title: strin
   );
 }
 
-function IndianProductSide({ product }: { product: RankedMatch }) {
+function IndianProductSide({ product, category }: { product: RankedMatch; category: string }) {
   return (
     <div className="rounded-3xl border border-ink/10 bg-white p-6 shadow-sm md:p-8">
       <div className="text-xs font-mono uppercase tracking-wider text-leaf">Best Indian alternative</div>
       {product.imageUrl ? (
-        <ProductImage src={product.imageUrl} alt={product.name} category="skincare-haircare" sizes="(min-width: 1024px) 30vw, 80vw" className="mt-3 aspect-[4/3] rounded-2xl" />
+        <ProductImage src={product.imageUrl} alt={product.name} category={category} sizes="(min-width: 1024px) 30vw, 80vw" className="mt-3 aspect-[4/3] rounded-2xl" />
       ) : (
         <div className="mt-3 flex aspect-[4/3] items-center justify-center rounded-2xl bg-leaf/10 text-leaf"><Sparkles className="h-10 w-10" /></div>
       )}

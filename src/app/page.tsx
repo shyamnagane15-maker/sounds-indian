@@ -151,7 +151,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
               </a>
               <a
                 href="/compareai"
-                className="whitespace-nowrap rounded-full border border-leaf/40 bg-leaf/5 px-4 py-3 text-sm font-medium text-leaf transition-colors hover:bg-leaf/10 sm:px-8 sm:py-3.5 sm:text-base"
+                className="whitespace-nowrap rounded-full border border-leaf/5 bg-leaf px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-leaf/80 sm:px-8 sm:py-3.5 sm:text-base"
               >
                 Compare AI
               </a>
