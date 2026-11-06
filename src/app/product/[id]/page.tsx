@@ -6,10 +6,11 @@ import { notFound } from 'next/navigation';
 import { AlertCircle, Check, ExternalLink, FlaskConical, Leaf, Tag } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { categoryLabel } from '../../lib/categories';
-import { formatINR, savingsPercent } from '../../lib/format';
+import { formatINR } from '../../lib/format';
 import SiteHeader from '../../components/SiteHeader';
 import SiteFooter from '../../components/SiteFooter';
 import ProductCard from '../../components/ProductCard';
+import VariantShowcase from '../../components/VariantShowcase';
 import { firstRelation, type ProductCardData, type ProductDetailData } from '../../lib/productTypes';
 import VerifiedStamp from '../../components/VerifiedStamp';
 
@@ -63,9 +64,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (!product) notFound();
 
   const brand = firstRelation(product.brand);
-  const saving = savingsPercent(product.price_inr, product.foreign_price_inr);
   const price = formatINR(product.price_inr);
   const foreignPrice = formatINR(product.foreign_price_inr);
+  const variants = Array.isArray(product.variants) ? product.variants.filter((v) => v && v.color && v.image_url) : [];
+  const hasVariants = variants.length > 0;
 
   const points = [...(product.points ?? [])].sort((a, b) => {
     const ai = TAG_ORDER.indexOf(a.tag);
@@ -143,27 +145,17 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <span className="h-px w-10 bg-ink/20 lg:h-10 lg:w-px" />
           </div>
 
-          <div className="rounded-3xl border border-ink/10 bg-white p-6 md:p-8 shadow-sm">
-            <ProductImage
-              src={product.image_url}
-              alt={product.indian_product_name}
-              category={product.category}
-              sizes="(min-width: 1024px) 40vw, 100vw"
-              priority
-              className="mb-6 aspect-[4/3] rounded-2xl"
-            />
-            <div className="text-xs font-mono uppercase tracking-wider text-leaf mb-2">Indian alternative</div>
-            <h2 className="font-display text-2xl md:text-3xl leading-tight">{product.indian_product_name}</h2>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <span className="font-display text-4xl">{price || 'Price not listed'}</span>
-              {saving !== null && (
-                <span className="rounded-full bg-leaf/15 px-3 py-1 text-sm font-bold text-leaf">
-                  {saving}% lower price
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-xs text-ink/50">Listed price</p>
-          </div>
+          {/* Indian alternative: image, colour picker, sizes, price */}
+          <VariantShowcase
+            name={product.indian_product_name}
+            category={product.category}
+            variants={variants}
+            fallbackImage={product.image_url ?? null}
+            fallbackPrice={product.price_inr}
+            foreignPrice={product.foreign_price_inr}
+            fallbackBuyUrl={product.buy_url}
+            brandName={brand?.name ?? null}
+          />
         </section>
         <p className="mt-3 text-xs text-ink/50">
           Prices are the listed prices from the brand and stores, and can change. Pack sizes can
@@ -203,7 +195,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
           {/* Buy + brand */}
           <aside className="space-y-6">
-            {product.buy_url && (
+            {/* Products with colour variants have their buy button inside the picker */}
+            {product.buy_url && !hasVariants && (
               <div className="rounded-3xl bg-ink p-6 text-ivory">
                 <div className="font-display text-3xl">{price}</div>
                 <a

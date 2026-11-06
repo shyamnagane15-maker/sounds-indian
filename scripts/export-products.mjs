@@ -95,10 +95,20 @@ if (DOWNLOAD) {
     ]) {
       if (!url) { missing++; continue; }
       try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        let buf = Buffer.from(await res.arrayBuffer());
-        let ext = path.extname(new URL(url).pathname) || '.webp';
+                let buf;
+        let ext;
+        if (url.startsWith('/')) {
+          // Relative path: the file lives in the project's public/ folder
+          const local = path.join(ROOT, 'public', url.split('?')[0]);
+          if (!fs.existsSync(local)) throw new Error(`file not found: ${local}`);
+          buf = fs.readFileSync(local);
+          ext = path.extname(local) || '.png';
+        } else {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          buf = Buffer.from(await res.arrayBuffer());
+          ext = path.extname(new URL(url).pathname) || '.webp';
+        }
         if (sharp) {
           buf = await sharp(buf).flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer();
           ext = '.jpg';

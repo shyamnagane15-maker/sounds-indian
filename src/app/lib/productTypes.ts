@@ -20,6 +20,15 @@ export type ComparisonPoint = {
   content: string;
 };
 
+export type ProductVariant = {
+  color: string;
+  image_url: string;
+  price_inr?: number | null;
+  mrp_inr?: number | null;
+  buy_url?: string | null;
+  sizes?: string[];
+};
+
 export type ProductCardData = {
   id: string;
   indian_product_name: string;
@@ -39,6 +48,7 @@ export type ProductDetailData = ProductCardData & {
   foreign_specs: Record<string, unknown> | null;
   spec_sources: Record<string, string[]> | null;
   specs_checked_at: string | null;
+  variants?: ProductVariant[] | null;
   brand: ProductRelation<ProductBrand>;
   points: ComparisonPoint[] | null;
 };
